@@ -26,7 +26,7 @@ import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 
 /** FlutterSoundPlugin */
-public class FlutterSoundPlugin implements MethodCallHandler, PluginRegistry.RequestPermissionsResultListener, AudioInterface{   
+public class FlutterSoundPlugin implements MethodCallHandler, PluginRegistry.RequestPermissionsResultListener, AudioInterface{
   final static String TAG = "FlutterSoundPlugin";
   final static String RECORD_STREAM = "com.dooboolab.fluttersound/record";
   final static String PLAY_STREAM= "com.dooboolab.fluttersound/play";
@@ -200,7 +200,7 @@ public class FlutterSoundPlugin implements MethodCallHandler, PluginRegistry.Req
 
             // Calculate db based on the following article.
             // https://stackoverflow.com/questions/10655703/what-does-androids-getmaxamplitude-function-for-the-mediarecorder-actually-gi
-            // 
+            //
             double ref_pressure = 51805.5336;
             double p = maxAmplitude  / ref_pressure;
             double p0 = 0.0002;
@@ -231,7 +231,31 @@ public class FlutterSoundPlugin implements MethodCallHandler, PluginRegistry.Req
         }
       });
     } catch (Exception e) {
-      Log.e(TAG, "Exception: ", e);
+      Log.e(TAG, "Start Recorder Exception: ", e);
+      if (this.model.getMediaRecorder() != null) {
+        try {
+          this.model.getMediaRecorder().stop();
+        } catch (Exception ex1) {
+          Log.e(TAG, "Stop Recorder Exception: ", ex1);
+        }
+        try {
+          this.model.getMediaRecorder().reset();
+        } catch (Exception ex2) {
+          Log.e(TAG, "Reset Recorder Exception: ", ex2);
+        }
+        try {
+          this.model.getMediaRecorder().release();
+        } catch (Exception ex3) {
+          Log.e(TAG, "Release Recorder Exception: ", ex3);
+        }
+        this.model.setMediaRecorder(null);
+      }
+      mainHandler.post(new Runnable() {
+        @Override
+        public void run() {
+          result.error(ERR_UNKNOWN, ERR_UNKNOWN, e.getMessage());
+        }
+      });
     }
   }
 
@@ -246,17 +270,27 @@ public class FlutterSoundPlugin implements MethodCallHandler, PluginRegistry.Req
       result.error(ERR_RECORDER_IS_NULL, ERR_RECORDER_IS_NULL, ERR_RECORDER_IS_NULL);
       return;
     }
-    this.model.getMediaRecorder().stop();
-    this.model.getMediaRecorder().reset();
-    this.model.getMediaRecorder().release();
-    this.model.setMediaRecorder(null);
-    mainHandler.post(new Runnable(){
-      @Override
-      public void run() {
-        result.success("recorder stopped.");
-      }
-    });
-
+    try {
+      this.model.getMediaRecorder().stop();
+      this.model.getMediaRecorder().reset();
+      this.model.getMediaRecorder().release();
+      this.model.setMediaRecorder(null);
+      mainHandler.post(new Runnable(){
+        @Override
+        public void run() {
+          result.success("recorder stopped.");
+        }
+      });
+    } catch (Exception e) {
+      Log.e(TAG, "Stop Recorder Exception: ", e);
+      this.model.setMediaRecorder(null);
+      mainHandler.post(new Runnable() {
+        @Override
+        public void run() {
+          result.error(ERR_UNKNOWN, ERR_UNKNOWN, e.getMessage());
+        }
+      });
+    }
   }
 
   @Override
